@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex">
     
-    <title>多読用プレイヤー（検索除け＆底上げ版）</title>
+    <title>多読用プレイヤー（スマホ音声対応版）</title>
     <style>
         /* --- 基本設定 --- */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif; background-color: #fcfcf7; color: #333; overflow: hidden; }
@@ -20,22 +20,21 @@
         .controls {
             background-color: #e0e0e0;
             display: flex;
-            flex-wrap: wrap; /* 自然な折り返し */
+            flex-wrap: wrap; 
             align-items: center;
-            justify-content: center; /* 中央寄せ */
+            justify-content: center;
             gap: 8px;
             padding: 10px;
             box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
             flex-shrink: 0;
             z-index: 10;
-            /* 通常時の高さはなりゆき任せ */
             height: auto; 
             min-height: 80px;
         }
 
         /* --- 各パーツ共通 --- */
         button {
-            padding: 10px 15px; /* 元の押しやすいサイズ */
+            padding: 10px 15px; 
             font-size: 14px;
             font-weight: bold;
             border: none;
@@ -64,32 +63,22 @@
         #fileInput { display: none; }
         .divider { width: 1px; height: 30px; background: #bbb; margin: 0 5px; }
 
-        /* --- ★スマホ用レイアウト（底上げ重視）★ --- */
+        /* --- スマホ用レイアウト（底上げ＆配置調整） --- */
         @media (max-width: 600px) {
-            .divider { display: none; } /* 邪魔な線は消す */
-
-            /* ★重要：下にガッツリ余白を入れる（底上げ） */
+            .divider { display: none; }
             .controls {
-                padding-bottom: 80px; /* ここでホームバー分を回避 */
-                justify-content: space-between; /* 均等に配置 */
+                padding-bottom: 80px; /* 底上げ */
+                justify-content: space-between; 
             }
-
-            /* ボタンサイズ調整（見やすさ優先） */
             button {
-                flex-grow: 1; /* 横幅いっぱいに広がる */
-                margin-bottom: 5px; /* 上下の隙間 */
+                flex-grow: 1; 
+                margin-bottom: 5px; 
                 font-size: 13px;
-                padding: 12px 5px; /* 指で押しやすく */
+                padding: 12px 5px; 
             }
-            
-            /* 個別の幅調整 */
-            #btnPlay { width: 100%; font-size: 18px; margin: 10px 0; } /* 再生ボタンは特大 */
-            
-            /* ボイス選択などは改行させる */
+            #btnPlay { width: 100%; font-size: 18px; margin: 10px 0; }
             select { width: 100%; margin-bottom: 5px; }
             .speed-control { width: 100%; justify-content: center; margin-bottom: 10px; padding: 8px; }
-            
-            /* 保存系ボタンは2つ並べる */
             #btnSave, #btnLoad { width: 48%; flex-grow: 0; }
             #btnSmartPaste, #btnFormat { width: 48%; flex-grow: 0; }
             #btnStop, #btnClear { width: 48%; flex-grow: 0; }
@@ -141,12 +130,12 @@
     let voices = [];
     
     function populateVoiceList() {
-        // 音声リスト取得（スマホ対応の遅延考慮）
+        // 音声リスト取得
         voices = synth.getVoices().sort((a, b) => a.name.localeCompare(b.name));
         voiceSelect.innerHTML = '';
         voices.forEach((voice) => {
             const option = document.createElement('option');
-            // スマホで見やすいように長い名前はカット
+            // 名前短縮処理
             let label = voice.name.replace(/Google |Microsoft /g, '');
             if(label.length > 25) label = label.substring(0, 25) + '..';
             option.textContent = `${label} (${voice.lang})`;
@@ -154,7 +143,7 @@
             voiceSelect.appendChild(option);
         });
         
-        // 英語優先選択
+        // デフォルト選択（英語優先）
         let defaultIndex = 0;
         const enIndex = Array.from(voiceSelect.options).findIndex(opt => opt.textContent.includes('en-') || opt.textContent.includes('English') || opt.textContent.includes('US'));
         if (enIndex > -1) defaultIndex = enIndex;
@@ -165,7 +154,6 @@
     if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = populateVoiceList;
     }
-    // iOS/Android Chromeでのリスト読み込み漏れ対策
     setTimeout(populateVoiceList, 500);
 
     rateInput.oninput = () => rateValue.textContent = rateInput.value;
@@ -175,18 +163,23 @@
         synth.cancel();
         if (!text) return;
         
-        // 文章を句読点などで分割
         const chunks = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
 
         chunks.forEach(chunk => {
             if (chunk.trim().length === 0) return;
             const utterThis = new SpeechSynthesisUtterance(chunk);
             
+            // ★【修正ポイント】スマホ対応：ボイス設定時に言語も明示する
             if (voiceSelect.selectedOptions.length > 0) {
                 const selectedName = voiceSelect.selectedOptions[0].getAttribute('data-name');
                 const voice = voices.find(v => v.name === selectedName);
-                if (voice) utterThis.voice = voice;
+                if (voice) {
+                    utterThis.voice = voice;
+                    // これがないとスマホで声が変わらないことが多い
+                    utterThis.lang = voice.lang; 
+                }
             }
+
             utterThis.rate = rateInput.value;
             utterThis.onerror = (e) => console.error(e);
             synth.speak(utterThis);
