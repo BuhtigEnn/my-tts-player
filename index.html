@@ -3,8 +3,9 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多読用プレイヤー（スマホ対応版）</title>
     <meta name="robots" content="noindex">
+    
+    <title>多読用プレイヤー（検索除け＆底上げ版）</title>
     <style>
         /* --- 基本設定 --- */
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif; background-color: #fcfcf7; color: #333; overflow: hidden; }
@@ -12,31 +13,29 @@
         
         /* --- テキストエリア --- */
         .text-area-wrapper { flex-grow: 1; padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
-        #textContent { width: 100%; height: 100%; border: none; resize: none; outline: none; background-color: transparent; font-size: 18px; /* スマホで見やすいサイズ */ line-height: 1.6; font-family: inherit; color: #2c3e50; box-sizing: border-box; white-space: pre-wrap; }
+        #textContent { width: 100%; height: 100%; border: none; resize: none; outline: none; background-color: transparent; font-size: 18px; line-height: 1.6; font-family: inherit; color: #2c3e50; box-sizing: border-box; white-space: pre-wrap; }
         #textContent::placeholder { color: #ccc; }
 
-        /* --- 操作パネル（ここを大幅改良） --- */
+        /* --- 操作パネル --- */
         .controls {
-            /* 高さ固定を廃止し、中身に合わせて伸びるように変更 */
-            min-height: 80px; 
-            height: auto; 
             background-color: #e0e0e0;
             display: flex;
-            flex-wrap: wrap; /* 折り返しを許可 */
+            flex-wrap: wrap; /* 自然な折り返し */
             align-items: center;
-            justify-content: center;
-            gap: 8px; /* ボタン同士の間隔 */
+            justify-content: center; /* 中央寄せ */
+            gap: 8px;
             padding: 10px;
             box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
             flex-shrink: 0;
             z-index: 10;
+            /* 通常時の高さはなりゆき任せ */
+            height: auto; 
+            min-height: 80px;
         }
 
-        /* --- 各パーツのデザイン --- */
-        select { padding: 8px; font-size: 14px; border-radius: 6px; border: 1px solid #999; max-width: 100%; }
-        
+        /* --- 各パーツ共通 --- */
         button {
-            padding: 10px 12px; /* タップしやすいサイズ */
+            padding: 10px 15px; /* 元の押しやすいサイズ */
             font-size: 14px;
             font-weight: bold;
             border: none;
@@ -47,54 +46,53 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            flex: 0 0 auto; /* 勝手に伸び縮みさせない */
         }
         button:active { transform: scale(0.96); opacity: 0.9; }
 
-        /* ボタン色 */
+        /* 色設定 */
         .btn-file { background-color: #673AB7; }
-        #btnSmartPaste { background-color: #FF9800; font-size: 14px; }
+        #btnSmartPaste { background-color: #FF9800; }
         #btnFormat { background-color: #4CAF50; }
-        #btnPlay { background-color: #2196F3; font-size: 16px; padding: 10px 20px; min-width: 80px; }
+        #btnPlay { background-color: #2196F3; font-size: 16px; padding: 10px 25px; min-width: 100px; }
         #btnStop { background-color: #F44336; font-size: 16px; }
-        #btnClear { background-color: #757575; font-size: 14px; padding: 10px 15px; }
+        #btnClear { background-color: #757575; font-size: 12px; padding: 10px; }
 
-        /* スピード調整 */
+        /* ボイス・スピード */
+        select { padding: 8px; font-size: 14px; border-radius: 6px; border: 1px solid #999; max-width: 200px; }
         .speed-control { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.5); padding: 5px; border-radius: 4px; }
         input[type=range] { width: 80px; }
         #fileInput { display: none; }
-        
-        /* 区切り線（PC用） */
-        .divider { width: 1px; height: 30px; background: #bbb; margin: 0 2px; }
+        .divider { width: 1px; height: 30px; background: #bbb; margin: 0 5px; }
 
-        /* --- ★スマホ用レイアウト調整（重要）★ --- */
+        /* --- ★スマホ用レイアウト（底上げ重視）★ --- */
         @media (max-width: 600px) {
-            #textContent { font-size: 16px; padding-bottom: 20px; }
-            
+            .divider { display: none; } /* 邪魔な線は消す */
+
+            /* ★重要：下にガッツリ余白を入れる（底上げ） */
             .controls {
-                justify-content: space-between; /* 均等配置 */
-                padding-bottom: 20px; /* 下の安全マージン */
+                padding-bottom: 80px; /* ここでホームバー分を回避 */
+                justify-content: space-between; /* 均等に配置 */
             }
 
-            /* ボタンを少し小さく、でも押しやすく */
+            /* ボタンサイズ調整（見やすさ優先） */
             button {
-                padding: 8px 10px;
-                font-size: 12px;
-                flex-grow: 1; /* 隙間を埋めるように広げる */
-                margin-bottom: 4px;
+                flex-grow: 1; /* 横幅いっぱいに広がる */
+                margin-bottom: 5px; /* 上下の隙間 */
+                font-size: 13px;
+                padding: 12px 5px; /* 指で押しやすく */
             }
             
-            /* メインの再生ボタンは目立たせる */
-            #btnPlay { flex-grow: 2; font-size: 16px; }
-
-            /* ボイス選択は幅いっぱいに */
-            select { width: 100%; margin: 5px 0; }
-
-            /* 区切り線はスマホでは邪魔なので消す */
-            .divider { display: none; }
+            /* 個別の幅調整 */
+            #btnPlay { width: 100%; font-size: 18px; margin: 10px 0; } /* 再生ボタンは特大 */
             
-            /* 保存・読込ボタンは少し小さめに */
-            .btn-file { max-width: 45%; }
+            /* ボイス選択などは改行させる */
+            select { width: 100%; margin-bottom: 5px; }
+            .speed-control { width: 100%; justify-content: center; margin-bottom: 10px; padding: 8px; }
+            
+            /* 保存系ボタンは2つ並べる */
+            #btnSave, #btnLoad { width: 48%; flex-grow: 0; }
+            #btnSmartPaste, #btnFormat { width: 48%; flex-grow: 0; }
+            #btnStop, #btnClear { width: 48%; flex-grow: 0; }
         }
     </style>
 </head>
@@ -107,24 +105,25 @@
     <input type="file" id="fileInput" accept=".txt">
 
     <div class="controls">
-        <button id="btnSave" class="btn-file">💾 保存</button>
-        <button id="btnLoad" class="btn-file">📂 読込</button>
+        <button id="btnSave" class="btn-file" title="保存">💾 保存</button>
+        <button id="btnLoad" class="btn-file" title="読込">📂 読込</button>
         
         <div class="divider"></div>
 
-        <button id="btnSmartPaste">📋 貼付再生</button>
-        <button id="btnFormat">↵ 整形</button>
+        <button id="btnSmartPaste" title="貼付再生">📋 貼付再生</button>
+        <button id="btnFormat" title="整形">↵ 整形</button>
 
         <div class="divider"></div>
 
         <select id="voiceSelect"><option value="">ボイス読込中...</option></select>
-        
         <div class="speed-control">
             <span>Spd:</span>
             <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
             <span id="rateValue">1.0</span>
         </div>
-        
+
+        <div class="divider"></div>
+
         <button id="btnPlay">▶ 再生</button>
         <button id="btnStop">■</button>
         <button id="btnClear">×</button>
@@ -141,22 +140,24 @@
     
     let voices = [];
     
-    // --- ボイスリスト取得 ---
     function populateVoiceList() {
-        // スマホによってはgetVoicesが空のままの場合があるので、少し待機が必要なケースへの保険
+        // 音声リスト取得（スマホ対応の遅延考慮）
         voices = synth.getVoices().sort((a, b) => a.name.localeCompare(b.name));
         voiceSelect.innerHTML = '';
         voices.forEach((voice) => {
             const option = document.createElement('option');
-            option.textContent = `${voice.name} (${voice.lang})`;
+            // スマホで見やすいように長い名前はカット
+            let label = voice.name.replace(/Google |Microsoft /g, '');
+            if(label.length > 25) label = label.substring(0, 25) + '..';
+            option.textContent = `${label} (${voice.lang})`;
             option.setAttribute('data-name', voice.name);
             voiceSelect.appendChild(option);
         });
         
+        // 英語優先選択
         let defaultIndex = 0;
-        const enIndex = Array.from(voiceSelect.options).findIndex(opt => opt.textContent.includes('en-') || opt.textContent.includes('English'));
+        const enIndex = Array.from(voiceSelect.options).findIndex(opt => opt.textContent.includes('en-') || opt.textContent.includes('English') || opt.textContent.includes('US'));
         if (enIndex > -1) defaultIndex = enIndex;
-        
         if(voiceSelect.options.length > 0) voiceSelect.selectedIndex = defaultIndex;
     }
     
@@ -164,17 +165,17 @@
     if (speechSynthesis.onvoiceschanged !== undefined) {
         speechSynthesis.onvoiceschanged = populateVoiceList;
     }
-    // iOSなどの対策（強制再取得）
-    setTimeout(populateVoiceList, 100);
+    // iOS/Android Chromeでのリスト読み込み漏れ対策
+    setTimeout(populateVoiceList, 500);
 
     rateInput.oninput = () => rateValue.textContent = rateInput.value;
 
-    // --- 長文対応再生ロジック ---
+    // --- 長文再生ロジック ---
     function playText(text) {
         synth.cancel();
         if (!text) return;
-
-        // 長文分割（.!?改行で区切る）
+        
+        // 文章を句読点などで分割
         const chunks = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
 
         chunks.forEach(chunk => {
@@ -192,7 +193,7 @@
         });
     }
 
-    // --- ボタン操作 ---
+    // --- ボタン機能 ---
     document.getElementById('btnSmartPaste').onclick = async () => {
         try {
             const text = await navigator.clipboard.readText();
@@ -200,25 +201,16 @@
             playText(text);
         } catch (e) { alert('クリップボード読み取り失敗: ' + e); }
     };
-
     document.getElementById('btnPlay').onclick = () => playText(textContent.value);
-    
     document.getElementById('btnStop').onclick = () => synth.cancel();
+    document.getElementById('btnFormat').onclick = () => { textContent.value = textContent.value.replace(/[\r\n]+/g, ' '); };
+    document.getElementById('btnClear').onclick = () => { textContent.value = ''; };
     
-    document.getElementById('btnFormat').onclick = () => {
-        textContent.value = textContent.value.replace(/[\r\n]+/g, ' ');
-    };
-
-    document.getElementById('btnClear').onclick = () => {
-        textContent.value = '';
-    };
-    
-    // 保存・読込
     document.getElementById('btnSave').onclick = () => {
         const blob = new Blob([textContent.value], { type: 'text/plain' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
-        a.download = `text_${new Date().getTime()}.txt`;
+        a.download = `text.txt`;
         a.click();
     };
     document.getElementById('btnLoad').onclick = () => fileInput.click();
