@@ -3,27 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>多読用プレイヤー（長文対応版）</title>
+    <title>多読用プレイヤー（スマホ対応版）</title>
     <meta name="robots" content="noindex">
     <style>
-        /* 基本スタイル */
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #fcfcf7; color: #333; overflow: hidden; }
+        /* --- 基本設定 --- */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: -apple-system, BlinkMacSystemFont, "Helvetica Neue", "Segoe UI", sans-serif; background-color: #fcfcf7; color: #333; overflow: hidden; }
         .container { display: flex; flex-direction: column; height: 100vh; }
-        .text-area-wrapper { flex-grow: 1; padding: 5px; overflow-y: auto; }
-        #textContent { width: 100%; height: 100%; border: none; resize: none; outline: none; background-color: transparent; font-size: 28px; line-height: 1.5; font-family: inherit; color: #2c3e50; box-sizing: border-box; white-space: pre-wrap; }
-        .controls { height: 100px; background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); padding: 0 20px; flex-shrink: 0; flex-wrap: wrap; }
-        select { padding: 8px 5px; font-size: 14px; border-radius: 6px; border: 1px solid #999; width: 200px; }
-        button { padding: 8px 15px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
-        button:active { transform: scale(0.98); }
+        
+        /* --- テキストエリア --- */
+        .text-area-wrapper { flex-grow: 1; padding: 10px; overflow-y: auto; -webkit-overflow-scrolling: touch; }
+        #textContent { width: 100%; height: 100%; border: none; resize: none; outline: none; background-color: transparent; font-size: 18px; /* スマホで見やすいサイズ */ line-height: 1.6; font-family: inherit; color: #2c3e50; box-sizing: border-box; white-space: pre-wrap; }
+        #textContent::placeholder { color: #ccc; }
+
+        /* --- 操作パネル（ここを大幅改良） --- */
+        .controls {
+            /* 高さ固定を廃止し、中身に合わせて伸びるように変更 */
+            min-height: 80px; 
+            height: auto; 
+            background-color: #e0e0e0;
+            display: flex;
+            flex-wrap: wrap; /* 折り返しを許可 */
+            align-items: center;
+            justify-content: center;
+            gap: 8px; /* ボタン同士の間隔 */
+            padding: 10px;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.1);
+            flex-shrink: 0;
+            z-index: 10;
+        }
+
+        /* --- 各パーツのデザイン --- */
+        select { padding: 8px; font-size: 14px; border-radius: 6px; border: 1px solid #999; max-width: 100%; }
+        
+        button {
+            padding: 10px 12px; /* タップしやすいサイズ */
+            font-size: 14px;
+            font-weight: bold;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            color: white;
+            white-space: nowrap;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex: 0 0 auto; /* 勝手に伸び縮みさせない */
+        }
+        button:active { transform: scale(0.96); opacity: 0.9; }
+
+        /* ボタン色 */
         .btn-file { background-color: #673AB7; }
-        #btnSmartPaste { background-color: #FF9800; font-size: 15px; }
+        #btnSmartPaste { background-color: #FF9800; font-size: 14px; }
         #btnFormat { background-color: #4CAF50; }
-        #btnPlay { background-color: #2196F3; font-size: 16px; padding: 8px 25px; min-width: 100px; }
+        #btnPlay { background-color: #2196F3; font-size: 16px; padding: 10px 20px; min-width: 80px; }
         #btnStop { background-color: #F44336; font-size: 16px; }
-        #btnClear { background-color: #757575; font-size: 12px; padding: 8px 10px; }
-        .speed-control { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: bold; }
+        #btnClear { background-color: #757575; font-size: 14px; padding: 10px 15px; }
+
+        /* スピード調整 */
+        .speed-control { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: bold; background: rgba(255,255,255,0.5); padding: 5px; border-radius: 4px; }
         input[type=range] { width: 80px; }
         #fileInput { display: none; }
+        
+        /* 区切り線（PC用） */
+        .divider { width: 1px; height: 30px; background: #bbb; margin: 0 2px; }
+
+        /* --- ★スマホ用レイアウト調整（重要）★ --- */
+        @media (max-width: 600px) {
+            #textContent { font-size: 16px; padding-bottom: 20px; }
+            
+            .controls {
+                justify-content: space-between; /* 均等配置 */
+                padding-bottom: 20px; /* 下の安全マージン */
+            }
+
+            /* ボタンを少し小さく、でも押しやすく */
+            button {
+                padding: 8px 10px;
+                font-size: 12px;
+                flex-grow: 1; /* 隙間を埋めるように広げる */
+                margin-bottom: 4px;
+            }
+            
+            /* メインの再生ボタンは目立たせる */
+            #btnPlay { flex-grow: 2; font-size: 16px; }
+
+            /* ボイス選択は幅いっぱいに */
+            select { width: 100%; margin: 5px 0; }
+
+            /* 区切り線はスマホでは邪魔なので消す */
+            .divider { display: none; }
+            
+            /* 保存・読込ボタンは少し小さめに */
+            .btn-file { max-width: 45%; }
+        }
     </style>
 </head>
 <body>
@@ -37,16 +109,22 @@
     <div class="controls">
         <button id="btnSave" class="btn-file">💾 保存</button>
         <button id="btnLoad" class="btn-file">📂 読込</button>
-        <div style="width:1px; height:40px; background:#bbb; margin:0 5px;"></div>
+        
+        <div class="divider"></div>
+
         <button id="btnSmartPaste">📋 貼付再生</button>
         <button id="btnFormat">↵ 整形</button>
-        <div style="width:1px; height:40px; background:#bbb; margin:0 5px;"></div>
+
+        <div class="divider"></div>
+
         <select id="voiceSelect"><option value="">ボイス読込中...</option></select>
+        
         <div class="speed-control">
             <span>Spd:</span>
             <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
             <span id="rateValue">1.0</span>
         </div>
+        
         <button id="btnPlay">▶ 再生</button>
         <button id="btnStop">■</button>
         <button id="btnClear">×</button>
@@ -65,6 +143,7 @@
     
     // --- ボイスリスト取得 ---
     function populateVoiceList() {
+        // スマホによってはgetVoicesが空のままの場合があるので、少し待機が必要なケースへの保険
         voices = synth.getVoices().sort((a, b) => a.name.localeCompare(b.name));
         voiceSelect.innerHTML = '';
         voices.forEach((voice) => {
@@ -73,16 +152,20 @@
             option.setAttribute('data-name', voice.name);
             voiceSelect.appendChild(option);
         });
-        // 英語優先、なければ日本語
+        
         let defaultIndex = 0;
-        // 英語(en)を含むボイスを探す
         const enIndex = Array.from(voiceSelect.options).findIndex(opt => opt.textContent.includes('en-') || opt.textContent.includes('English'));
         if (enIndex > -1) defaultIndex = enIndex;
         
         if(voiceSelect.options.length > 0) voiceSelect.selectedIndex = defaultIndex;
     }
+    
     populateVoiceList();
-    if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = populateVoiceList;
+    if (speechSynthesis.onvoiceschanged !== undefined) {
+        speechSynthesis.onvoiceschanged = populateVoiceList;
+    }
+    // iOSなどの対策（強制再取得）
+    setTimeout(populateVoiceList, 100);
 
     rateInput.oninput = () => rateValue.textContent = rateInput.value;
 
@@ -91,27 +174,20 @@
         synth.cancel();
         if (!text) return;
 
-        // ★ここが長文対策：文章をピリオドや改行で区切って配列にする
-        // (約300文字以上の塊にならないように分割してキューに入れる)
+        // 長文分割（.!?改行で区切る）
         const chunks = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
 
         chunks.forEach(chunk => {
             if (chunk.trim().length === 0) return;
-            
             const utterThis = new SpeechSynthesisUtterance(chunk);
             
-            // ボイス設定
             if (voiceSelect.selectedOptions.length > 0) {
                 const selectedName = voiceSelect.selectedOptions[0].getAttribute('data-name');
                 const voice = voices.find(v => v.name === selectedName);
                 if (voice) utterThis.voice = voice;
             }
             utterThis.rate = rateInput.value;
-            
-            // エラー対策
             utterThis.onerror = (e) => console.error(e);
-            
-            // キューに追加（自動で順番に再生されます）
             synth.speak(utterThis);
         });
     }
@@ -121,8 +197,8 @@
         try {
             const text = await navigator.clipboard.readText();
             textContent.value = text;
-            playText(text); // 貼り付けたら即再生
-        } catch (e) { alert('クリップボード読み取り失敗'); }
+            playText(text);
+        } catch (e) { alert('クリップボード読み取り失敗: ' + e); }
     };
 
     document.getElementById('btnPlay').onclick = () => playText(textContent.value);
