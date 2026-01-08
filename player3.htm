@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>多読用プレイヤー（長文対応版）</title>
+    <meta name="robots" content="noindex">
+    <style>
+        /* 基本スタイル */
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Helvetica Neue', Arial, sans-serif; background-color: #fcfcf7; color: #333; overflow: hidden; }
+        .container { display: flex; flex-direction: column; height: 100vh; }
+        .text-area-wrapper { flex-grow: 1; padding: 5px; overflow-y: auto; }
+        #textContent { width: 100%; height: 100%; border: none; resize: none; outline: none; background-color: transparent; font-size: 28px; line-height: 1.5; font-family: inherit; color: #2c3e50; box-sizing: border-box; white-space: pre-wrap; }
+        .controls { height: 100px; background-color: #e0e0e0; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: 0 -4px 10px rgba(0,0,0,0.1); padding: 0 20px; flex-shrink: 0; flex-wrap: wrap; }
+        select { padding: 8px 5px; font-size: 14px; border-radius: 6px; border: 1px solid #999; width: 200px; }
+        button { padding: 8px 15px; font-size: 14px; font-weight: bold; border: none; border-radius: 6px; cursor: pointer; color: white; white-space: nowrap; display: flex; align-items: center; justify-content: center; }
+        button:active { transform: scale(0.98); }
+        .btn-file { background-color: #673AB7; }
+        #btnSmartPaste { background-color: #FF9800; font-size: 15px; }
+        #btnFormat { background-color: #4CAF50; }
+        #btnPlay { background-color: #2196F3; font-size: 16px; padding: 8px 25px; min-width: 100px; }
+        #btnStop { background-color: #F44336; font-size: 16px; }
+        #btnClear { background-color: #757575; font-size: 12px; padding: 8px 10px; }
+        .speed-control { display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: bold; }
+        input[type=range] { width: 80px; }
+        #fileInput { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="text-area-wrapper">
+        <textarea id="textContent" placeholder="ここに長文を貼り付けてください。自動で分割して読み上げます。"></textarea>
+    </div>
+    <input type="file" id="fileInput" accept=".txt">
+
+    <div class="controls">
+        <button id="btnSave" class="btn-file">💾 保存</button>
+        <button id="btnLoad" class="btn-file">📂 読込</button>
+        <div style="width:1px; height:40px; background:#bbb; margin:0 5px;"></div>
+        <button id="btnSmartPaste">📋 貼付再生</button>
+        <button id="btnFormat">↵ 整形</button>
+        <div style="width:1px; height:40px; background:#bbb; margin:0 5px;"></div>
+        <select id="voiceSelect"><option value="">ボイス読込中...</option></select>
+        <div class="speed-control">
+            <span>Spd:</span>
+            <input type="range" id="rate" min="0.5" max="2" value="1" step="0.1">
+            <span id="rateValue">1.0</span>
+        </div>
+        <button id="btnPlay">▶ 再生</button>
+        <button id="btnStop">■</button>
+        <button id="btnClear">×</button>
+    </div>
+</div>
+
+<script>
+    const synth = window.speechSynthesis;
+    const voiceSelect = document.getElementById('voiceSelect');
+    const textContent = document.getElementById('textContent');
+    const rateInput = document.getElementById('rate');
+    const rateValue = document.getElementById('rateValue');
+    const fileInput = document.getElementById('fileInput');
+    
+    let voices = [];
+    
+    // --- ボイスリスト取得 ---
+    function populateVoiceList() {
+        voices = synth.getVoices().sort((a, b) => a.name.localeCompare(b.name));
+        voiceSelect.innerHTML = '';
+        voices.forEach((voice) => {
+            const option = document.createElement('option');
+            option.textContent = `${voice.name} (${voice.lang})`;
+            option.setAttribute('data-name', voice.name);
+            voiceSelect.appendChild(option);
+        });
+        // 英語優先、なければ日本語
+        let defaultIndex = 0;
+        // 英語(en)を含むボイスを探す
+        const enIndex = Array.from(voiceSelect.options).findIndex(opt => opt.textContent.includes('en-') || opt.textContent.includes('English'));
+        if (enIndex > -1) defaultIndex = enIndex;
+        
+        if(voiceSelect.options.length > 0) voiceSelect.selectedIndex = defaultIndex;
+    }
+    populateVoiceList();
+    if (speechSynthesis.onvoiceschanged !== undefined) speechSynthesis.onvoiceschanged = populateVoiceList;
+
+    rateInput.oninput = () => rateValue.textContent = rateInput.value;
+
+    // --- 長文対応再生ロジック ---
+    function playText(text) {
+        synth.cancel();
+        if (!text) return;
+
+        // ★ここが長文対策：文章をピリオドや改行で区切って配列にする
+        // (約300文字以上の塊にならないように分割してキューに入れる)
+        const chunks = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+
+        chunks.forEach(chunk => {
+            if (chunk.trim().length === 0) return;
+            
+            const utterThis = new SpeechSynthesisUtterance(chunk);
+            
+            // ボイス設定
+            if (voiceSelect.selectedOptions.length > 0) {
+                const selectedName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+                const voice = voices.find(v => v.name === selectedName);
+                if (voice) utterThis.voice = voice;
+            }
+            utterThis.rate = rateInput.value;
+            
+            // エラー対策
+            utterThis.onerror = (e) => console.error(e);
+            
+            // キューに追加（自動で順番に再生されます）
+            synth.speak(utterThis);
+        });
+    }
+
+    // --- ボタン操作 ---
+    document.getElementById('btnSmartPaste').onclick = async () => {
+        try {
+            const text = await navigator.clipboard.readText();
+            textContent.value = text;
+            playText(text); // 貼り付けたら即再生
+        } catch (e) { alert('クリップボード読み取り失敗'); }
+    };
+
+    document.getElementById('btnPlay').onclick = () => playText(textContent.value);
+    
+    document.getElementById('btnStop').onclick = () => synth.cancel();
+    
+    document.getElementById('btnFormat').onclick = () => {
+        textContent.value = textContent.value.replace(/[\r\n]+/g, ' ');
+    };
+
+    document.getElementById('btnClear').onclick = () => {
+        textContent.value = '';
+    };
+    
+    // 保存・読込
+    document.getElementById('btnSave').onclick = () => {
+        const blob = new Blob([textContent.value], { type: 'text/plain' });
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = `text_${new Date().getTime()}.txt`;
+        a.click();
+    };
+    document.getElementById('btnLoad').onclick = () => fileInput.click();
+    fileInput.onchange = (e) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => textContent.value = ev.target.result;
+        reader.readAsText(e.target.files[0]);
+        fileInput.value = '';
+    };
+</script>
+</body>
+</html>
