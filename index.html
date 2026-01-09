@@ -158,34 +158,51 @@
 
     rateInput.oninput = () => rateValue.textContent = rateInput.value;
 
-    // --- 長文再生ロジック ---
+
+　　// --- 言語自動判別付き再生ロジック ---
     function playText(text) {
         synth.cancel();
         if (!text) return;
-        
-        const chunks = text.match(/[^.!?\n]+[.!?\n]*/g) || [text];
+
+        // ★修正1: 日本語の句読点（。！？）でも区切れるように正規表現を強化
+        const chunks = text.match(/[^.!?\n。！？]+[.!?\n。！？]*/g) || [text];
 
         chunks.forEach(chunk => {
             if (chunk.trim().length === 0) return;
             const utterThis = new SpeechSynthesisUtterance(chunk);
-            
-            // ★【修正ポイント】スマホ対応：ボイス設定時に言語も明示する
-            if (voiceSelect.selectedOptions.length > 0) {
-                const selectedName = voiceSelect.selectedOptions[0].getAttribute('data-name');
-                const voice = voices.find(v => v.name === selectedName);
-                if (voice) {
-                    utterThis.voice = voice;
-                    // これがないとスマホで声が変わらないことが多い
-                    utterThis.lang = voice.lang; 
+
+            // ★修正2: 文章の中に「ひらがな・カタカナ・漢字」があるかチェック
+            const isJapanese = /[ぁ-んァ-ン一-龠]/.test(chunk);
+
+            if (isJapanese) {
+                // --- A. 日本語が含まれる場合 ---
+                // 強制的に日本語ボイスを探してセットする
+                const jaVoice = voices.find(v => v.lang.includes('ja') || v.lang.includes('JP'));
+                if (jaVoice) {
+                    utterThis.voice = jaVoice;
+                    utterThis.lang = jaVoice.lang;
                 }
+                // ※レート（速度）は共通設定を使う
+                utterThis.rate = rateInput.value;
+
+            } else {
+                // --- B. 英語のみの場合 ---
+                // プルダウンで選択されているボイス（英語など）を使う
+                if (voiceSelect.selectedOptions.length > 0) {
+                    const selectedName = voiceSelect.selectedOptions[0].getAttribute('data-name');
+                    const voice = voices.find(v => v.name === selectedName);
+                    if (voice) {
+                        utterThis.voice = voice;
+                        utterThis.lang = voice.lang;
+                    }
+                }
+                utterThis.rate = rateInput.value;
             }
 
-            utterThis.rate = rateInput.value;
             utterThis.onerror = (e) => console.error(e);
             synth.speak(utterThis);
         });
     }
-
     // --- ボタン機能 ---
     document.getElementById('btnSmartPaste').onclick = async () => {
         try {
@@ -216,3 +233,4 @@
 </script>
 </body>
 </html>
+
